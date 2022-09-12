@@ -1,4 +1,4 @@
-package com.gerwalex.lib.main
+package com.gerwalex.extensions.activityresult
 
 import android.content.Intent
 import androidx.activity.result.ActivityResult

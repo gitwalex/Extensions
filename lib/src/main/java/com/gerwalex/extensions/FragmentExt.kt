@@ -1,14 +1,8 @@
 package com.gerwalex.extensions
 
 import androidx.fragment.app.Fragment
+import com.gerwalex.extensions.permission.PermissionUtil
 
 object FragmentExt {
 
-    /**
-     * Registriert PermissionRequest ohne ResultHandler.
-     */
-    @JvmStatic
-    fun Fragment.registerforPermissionRequest(): PermissionUtil.Permission {
-        return PermissionUtil.Permission(this)
-    }
 }

@@ -1,4 +1,4 @@
-package com.gerwalex.extensions
+package com.gerwalex.extensions.permission
 
 import android.app.Activity
 import android.content.pm.PackageManager
@@ -10,17 +10,9 @@ import androidx.fragment.app.Fragment
 
 object PermissionUtil {
     class Permission private constructor(private val caller: ActivityResultCaller) {
-        constructor(caller: Activity) : this(caller as ActivityResultCaller)
-        constructor(caller: Fragment) : this(caller as ActivityResultCaller)
 
         private val launcher: ActivityResultLauncher<Array<String>>
         private var onPermissionRequestResult: OnPermissionResult? = null
-
-        init {
-            launcher = caller.registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-                onPermissionRequestResult(it)
-            }
-        }
 
         /**
          * Wird nach Berechtigungabfrage
@@ -29,38 +21,8 @@ object PermissionUtil {
             onPermissionRequestResult?.onPermissionResult(getPermissionState(it as MutableMap<String, Boolean>))
         }
 
-        /**
-         * Resulthandler: Functional Callback interface
-         */
-        fun interface OnPermissionResult {
-
-            /**
-             * Called after receiving a result
-             */
-            fun onPermissionResult(result: PermissionState)
-        }
-
-        private fun getActivity(): Activity {
-            return when (caller) {
-                is Fragment -> caller.requireActivity()
-                is Activity -> caller
-                else -> throw IllegalArgumentException("cannot determine Acivity")
-            }
-        }
-
-        /**
-         * Prüft die Vorausstzungen für Berechtigungsabfrage:
-         *
-         * 1. activity kann ermittelt werden.
-         * 2. Es sind noch nicht alle Berechtigungen vorhanden. (untested)
-         *
-         * Alle Berechtigungen vorhanden: Direkter Aufruf von Permission#onPermissionRequestResult, ansonsten
-         * Start der Berechtigungsabfrage.
-         */
-        private fun launch(permissionList: Array<String>, onPermissionRequestResult: OnPermissionResult) {
-            this.onPermissionRequestResult = onPermissionRequestResult
-            launcher.launch(permissionList)
-        }
+        constructor(caller: Activity) : this(caller as ActivityResultCaller)
+        constructor(caller: Fragment) : this(caller as ActivityResultCaller)
 
         /**
          * Liefert zu der Liste der angeforderten Berechtigungen den jeweiligen Status
@@ -81,6 +43,20 @@ object PermissionUtil {
         }
 
         /**
+         * Prüft die Vorausstzungen für Berechtigungsabfrage:
+         *
+         * 1. activity kann ermittelt werden.
+         * 2. Es sind noch nicht alle Berechtigungen vorhanden. (untested)
+         *
+         * Alle Berechtigungen vorhanden: Direkter Aufruf von Permission#onPermissionRequestResult, ansonsten
+         * Start der Berechtigungsabfrage.
+         */
+        private fun launch(permissionList: Array<String>, onPermissionRequestResult: OnPermissionResult) {
+            this.onPermissionRequestResult = onPermissionRequestResult
+            launcher.launch(permissionList)
+        }
+
+        /**
          * Startet eine einzelne Permissionabfrage.
          * @param permission Permission
          * @param onPermissionRequestResult Callback für Result
@@ -96,6 +72,14 @@ object PermissionUtil {
          */
         fun launchMultiplePermission(permissionList: Array<String>, onPermissionRequestResult: OnPermissionResult) {
             this.launch(permissionList, onPermissionRequestResult)
+        }
+
+        private fun getActivity(): Activity {
+            return when (caller) {
+                is Fragment -> caller.requireActivity()
+                is Activity -> caller
+                else -> throw IllegalArgumentException("cannot determine Acivity")
+            }
         }
 
         /**
@@ -128,6 +112,72 @@ object PermissionUtil {
             }
             return state
         }
+
+        /**
+         * Resulthandler: Functional Callback interface
+         */
+        fun interface OnPermissionResult {
+
+            /**
+             * Called after receiving a result
+             */
+            fun onPermissionResult(result: PermissionState)
+        }
+
+        init {
+            launcher = caller.registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+                onPermissionRequestResult(it)
+            }
+        }
+    }
+
+    /**
+     * Liefert zu der Liste der angeforderten Berechtigungen den jeweiligen Status
+     *
+     * @param permissionList der Berechtigungen
+     *
+     * @return Map<Name der Berechtigung, PermissionState>
+     */
+    @JvmStatic
+    fun Activity.checkState(permissionList: Array<String>): Map<String, PermissionState> {
+        val map = HashMap<String, PermissionState>()
+        permissionList.forEach {
+            map[it] = checkState(it)
+        }
+        return map
+    }
+
+    /**
+     * Liefert zu einer Berechtigung den Status
+     * @param permissionName Name der Berechtigung
+     *
+     * @return PermissionState (Granted, Denied, PermamentlyDenied)
+     */
+    @JvmStatic
+    fun Activity.checkState(permissionName: String): PermissionState {
+        return when (ActivityCompat.checkSelfPermission(this, permissionName) == PackageManager.PERMISSION_GRANTED) {
+            true -> PermissionState.Granted
+            false -> {
+                if (ActivityCompat.shouldShowRequestPermissionRationale(this, permissionName))
+                    PermissionState.Denied else PermissionState.PermanentlyDenied
+            }
+        }
+    }
+
+    /**
+     * Registriert PermissionRequest ohne ResultHandler.
+     */
+    @JvmStatic
+    fun Activity.registerforPermissionRequest(): Permission {
+        return Permission(this)
+    }
+
+    /**
+     * Registriert PermissionRequest ohne ResultHandler.
+     */
+    @JvmStatic
+    fun Fragment.registerforPermissionRequest(): Permission {
+        return Permission(this)
     }
 }
 
